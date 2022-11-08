@@ -1,3 +1,5 @@
+const { config } = require('@charcoal-ui/tailwind-config')
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -9,4 +11,5 @@ module.exports = {
     extend: {},
   },
   plugins: [],
+  presets: [config],
 }
