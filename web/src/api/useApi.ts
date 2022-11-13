@@ -82,7 +82,26 @@ export function useSuspendApi<T extends keyof apis>(
 const mocks: {
     [T in keyof apis]: response<T>
 } = {
-    "/notes.get": {},
+    "/notes.get": {
+        value: {
+            id: "test",
+            category: "category",
+            creator: "comame",
+            create_date: "2022-11-13",
+            update_date: "2022-11-13",
+            can_read: { target: "any" },
+            can_write: { target: "me" },
+            tags: ["blog", "network"],
+            title: "メモです",
+            content:
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n\n".repeat(
+                    5
+                ),
+        },
+    },
+    "/tags.all": {
+        value: ["blog", "network", "Kubernetes"],
+    },
 }
 
 export function _useSuspendApi<T extends keyof apis>(

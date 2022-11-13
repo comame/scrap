@@ -2,6 +2,13 @@
 const nextConfig = {
     reactStrictMode: true,
     swcMinify: true,
+    webpack(config) {
+        config.module.rules.push({
+            test: /\.svg$/u,
+            type: 'asset'
+        })
+        return config
+    }
 }
 
 module.exports = nextConfig
