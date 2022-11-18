@@ -5,5 +5,5 @@
 * {
     box-sizing: border-box;
     font-family: sans-serif;
-    color: theme('colors.text1.DEFAULT');
+    color: theme("colors.text1.DEFAULT");
 }

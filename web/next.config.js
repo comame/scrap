@@ -5,10 +5,10 @@ const nextConfig = {
     webpack(config) {
         config.module.rules.push({
             test: /\.svg$/u,
-            type: 'asset'
+            type: "asset",
         })
         return config
-    }
+    },
 }
 
 module.exports = nextConfig

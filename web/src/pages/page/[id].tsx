@@ -79,7 +79,7 @@ function Title({ title, onChange }: titleProps) {
                 placeholder="タイトルを入力"
                 className={`
                     text-text2 hover:text-text2-focus focus:text-text1
-                    text-3xl py-8 px-16 border-b-2 w-full
+                    typography-32 h-[56px] py-8 px-16 border-b-2 w-full
                     outline-none border-default focus:border-[#858585] hover:border-default-hover
                     placeholder:text-surface4 placeholder:hover:text-surface4-press placeholder:focus:text-surface4-press
                     transition-all placeholder:transition-all
@@ -96,7 +96,7 @@ type metadataProps = {
 function Metadata({ noteMetadata, onChange }: metadataProps) {
     const [currentMetadata, setCurrentMetadata] = useState(noteMetadata)
     return (
-        <div className="overflow-y-auto">
+        <div className="">
             <table className="w-col-span-4 mx-auto">
                 <tbody>
                     <tr>
@@ -141,6 +141,8 @@ type tagListProps = {
 function TagList({ tags, onChange }: tagListProps) {
     const [currentTags, setCurrentTags] = useState(tags)
     const [isEditing, setIsEditing] = useState(false)
+    const [candidates, setCandidates] = useState<string[]>([])
+    const [candidateIndex, setCandidateIndex] = useState(0)
 
     const tagAllResponse = _useSuspendApi("/tags.all", {})
     const tagCandidates =
@@ -163,9 +165,14 @@ function TagList({ tags, onChange }: tagListProps) {
         setIsEditing(true)
         setInputValue(currentTags.join(" "))
         setSelectTagIndex(tagIndex)
+        setCandidateIndex(0)
+        setCandidates(getCandidates(""))
     }
     useEffect(() => {
         if (isEditing) {
+            if (document.activeElement === ref.current) {
+                return
+            }
             ref.current?.focus()
             let cursorPositon = 0
             let i = 0
@@ -179,32 +186,104 @@ function TagList({ tags, onChange }: tagListProps) {
             if (i > 0) {
                 cursorPositon += 1
             }
-            cursorPositon += currentTags[i].length
+            cursorPositon += currentTags[i]?.length ?? 0
             ref.current?.setSelectionRange(cursorPositon, cursorPositon)
         }
     }, [ref.current, isEditing])
 
+    /** replace は入力中の文字よりも長い */
+    const replaceWithCandidate = (
+        value: string,
+        cursorPosition: number,
+        replace: string
+    ): [newValue: string, cursorPosition: number] => {
+        console.log({ value, cursorPosition, replace })
+
+        const chars: string[] = []
+        let i = cursorPosition - 1
+        while (i >= 0) {
+            if (value[i] === " ") {
+                i += 1
+                break
+            }
+            chars.push(value[i])
+            i -= 1
+        }
+        const tag = chars.reverse().join("")
+
+        if (replace.length < tag.length) {
+            throw 1
+        }
+
+        const newValue =
+            value.slice(0, i) + replace + value.slice(cursorPosition)
+        const newCursorPosition = cursorPosition + (replace.length - tag.length)
+
+        return [newValue, newCursorPosition]
+    }
+
     const [inputValue, setInputValue] = useState("")
     const onInput = (v: string) => {
+        setCandidateIndex(0)
         setInputValue(v)
-        const tags = v
-            .split(/\s+/)
-            .map((v) => v.trim())
-            .filter((v) => v !== "")
-        const candidates =
-            v[v.length - 1] === " "
-                ? getCandidates("")
-                : getCandidates(tags[tags.length - 1])
-        console.log(candidates)
+
+        const cursorPosition = ref.current?.selectionStart
+        if (cursorPosition === undefined) {
+            return
+        }
+        const chars: string[] = []
+
+        let i = (cursorPosition ?? 0) - 1
+        while (i >= 0) {
+            if (v[i] === " ") {
+                break
+            }
+            chars.push(v[i])
+            i -= 1
+        }
+        const tag = chars.reverse().join("")
+        const candidates = getCandidates(tag)
+        setCandidates(candidates)
     }
     const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
         switch (e.key) {
             case "Enter": {
-                endInput()
+                const selectedCandidate = candidates[candidateIndex]
+                if (selectedCandidate) {
+                    const cursorPosition = ref.current?.selectionStart
+                    if (cursorPosition === undefined) {
+                        break
+                    }
+                    const [v, newCursorPosition] = replaceWithCandidate(
+                        inputValue,
+                        cursorPosition ?? 0,
+                        selectedCandidate
+                    )
+                    setInputValue(v)
+                    ref.current?.setSelectionRange(
+                        newCursorPosition,
+                        newCursorPosition
+                    )
+                } else {
+                    endInput()
+                }
+                break
+            }
+            case "ArrowUp": {
+                e.preventDefault()
+                setCandidateIndex((i) => Math.max(0, i - 1))
+                break
+            }
+            case "ArrowDown": {
+                e.preventDefault()
+                setCandidateIndex((i) => Math.min(candidates.length - 1, i + 1))
                 break
             }
         }
     }
+    useEffect(() => {
+        console.log(candidateIndex)
+    }, [candidateIndex])
     const endInput = () => {
         setIsEditing(false)
         const tags = inputValue
@@ -220,8 +299,8 @@ function TagList({ tags, onChange }: tagListProps) {
             <ul className="inline">
                 {isEditing ? (
                     <div className="relative">
-                        <div className="inline-block bg-tag text-transparent rounded-8 px-8 focus-within:outline-2 focus-within:outline -outline-offset-2 outline-text2">
-                            {inputValue}
+                        <div className="inline-block bg-tag text-transparent rounded-8 px-8 focus-within:outline-2 focus-within:outline -outline-offset-2 outline-text2 whitespace-nowrap">
+                            {inputValue ? inputValue : "&nbsp;"}
                         </div>
                         <input
                             value={inputValue}
@@ -229,8 +308,29 @@ function TagList({ tags, onChange }: tagListProps) {
                             onKeyDown={onKeyDown}
                             onBlur={endInput}
                             ref={ref}
-                            className="absolute top-0 left-0 bg-transparent px-8 outline-none inline-block w-full h-full"
+                            className="absolute top-0 left-0 bg-transparent px-8 outline-none inline-block w-full h-full whitespace-nowrap"
                         />
+                        <ul className="absolute top-24 left-0 w-full z-10 bg-background2 max-w-min">
+                            {candidates.map((candidate, i) =>
+                                i === candidateIndex ? (
+                                    <div
+                                        className="bg-background2-press w-full"
+                                        key={candidate}
+                                    >
+                                        <li className="max-w-min px-8">
+                                            {candidate}
+                                        </li>
+                                    </div>
+                                ) : (
+                                    <li
+                                        className="max-w-min px-8"
+                                        key={candidate}
+                                    >
+                                        {candidate}
+                                    </li>
+                                )
+                            )}
+                        </ul>
                     </div>
                 ) : (
                     currentTags.map((tag, i) => (
@@ -244,6 +344,16 @@ function TagList({ tags, onChange }: tagListProps) {
                             <span>{tag}</span>
                         </li>
                     ))
+                )}
+                {!isEditing && currentTags.length === 0 && (
+                    <div
+                        onClick={() => onStartEdit(-1)}
+                        onKeyDown={() => onStartEdit(-1)}
+                        tabIndex={0}
+                        className="inline-block text-text2 mr-8 px-8 rounded-4 bg-tag hover:bg-tag-hover focus-within:outline-2 focus-within:outline -outline-offset-2 outline-text2"
+                    >
+                        タグを入力
+                    </div>
                 )}
             </ul>
         </span>
